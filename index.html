@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LIFO | Optimización Volumétrica Automática</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <style>
+    body { background-color: #0b1528; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body class="h-screen flex flex-col overflow-hidden">
+
+  <!-- HEADER CON IDENTIDAD LIFO -->
+  <header class="bg-slate-900/90 border-b border-slate-800 px-6 py-3 flex flex-wrap items-center justify-between gap-4">
+    <div class="flex items-center gap-3">
+      <img src="logo.png" alt="LIFO Logo" class="h-11 w-auto rounded bg-white p-1 shadow"
+           onerror="this.style.display='none'" />
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-2xl font-black tracking-wider text-sky-400">LIF<span class="text-amber-500">O</span></span>
+          <span class="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/40 px-2 py-0.5 rounded-full font-semibold">
+            Last In, First Out
+          </span>
+        </div>
+        <p class="text-xs text-slate-400 font-medium tracking-wide uppercase">
+          Optimización Volumétrica Automática
+        </p>
+      </div>
+    </div>
+
+    <!-- KPIs EN TIEMPO REAL -->
+    <div class="flex items-center gap-6 text-sm">
+      <div class="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+        <span class="text-slate-400 text-xs block">Volumen Ocupado</span>
+        <span id="kpi-vol" class="font-bold text-sky-400 text-base">0%</span>
+      </div>
+      <div class="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+        <span class="text-slate-400 text-xs block">Cajas Cargadas</span>
+        <span id="kpi-cajas" class="font-bold text-amber-400 text-base">0 / 0</span>
+      </div>
+      <div class="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
+        <span class="text-slate-400 text-xs block">Peso Total</span>
+        <span id="kpi-peso" class="font-bold text-emerald-400 text-base">0 kg</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+
+    <!-- PANEL IZQUIERDO: INGRESO DE CAJAS Y FURGÓN -->
+    <section class="lg:col-span-3 bg-slate-900/60 border-r border-slate-800 p-4 overflow-y-auto flex flex-col gap-4">
+      <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/70">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400 mb-2">1. Dimensiones del Furgón (cm)</h2>
+        <div class="grid grid-cols-3 gap-2 text-xs">
+          <div>
+            <label class="text-slate-400 block mb-1">Largo (X)</label>
+            <input id="van-l" type="number" value="240" onchange="recalcular()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">Ancho (Y)</label>
+            <input id="van-w" type="number" value="150" onchange="recalcular()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">Alto (Z)</label>
+            <input id="van-h" type="number" value="140" onchange="recalcular()" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+        </div>
+      </div>
+
+      <!-- FORMULARIO PARA AGREGAR PAQUETE -->
+      <div class="bg-slate-800/60 p-3 rounded-xl border border-slate-700/70">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">2. Agregar Paquete a la Ruta</h2>
+        <div class="grid grid-cols-2 gap-2 text-xs mb-2">
+          <div>
+            <label class="text-slate-400 block mb-1">Código / ID</label>
+            <input id="pkg-id" type="text" value="Caja-X1" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">N° Parada (Entrega)</label>
+            <input id="pkg-stop" type="number" value="1" min="1" max="20" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+        </div>
+        <div class="grid grid-cols-4 gap-2 text-xs mb-3">
+          <div>
+            <label class="text-slate-400 block mb-1">Largo</label>
+            <input id="pkg-l" type="number" value="60" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">Ancho</label>
+            <input id="pkg-w" type="number" value="50" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">Alto</label>
+            <input id="pkg-h" type="number" value="40" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+          <div>
+            <label class="text-slate-400 block mb-1">Peso (kg)</label>
+            <input id="pkg-weight" type="number" value="15" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
+          </div>
+        </div>
+        <button onclick="agregarPaquete()" class="w-full bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold py-1.5 rounded-lg text-xs transition">
+          + Añadir Paquete y Optimizar
+        </button>
+      </div>
+
+      <!-- CONTROLES DE DEMOSTRACIÓN -->
+      <div class="flex flex-col gap-2">
+        <button onclick="iniciarSimulacionPasoAPaso()" class="w-full bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold py-2 rounded-lg text-xs transition shadow-lg">
+          ▶ Simular Carga Paso a Paso (En Vivo)
+        </button>
+        <div class="grid grid-cols-2 gap-2">
+          <button onclick="cargarRutaDemo()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 py-1.5 rounded-lg text-xs">
+            Cargar Ruta Demo
+          </button>
+          <button onclick="vaciarFurgon()" class="bg-red-950/60 hover:bg-red-900/70 border border-red-800 text-red-200 py-1.5 rounded-lg text-xs">
+            Vaciar Todo
+          </button>
+        </div>
+      </div>
+
+      <!-- LEYENDA DE COLORES -->
+      <div class="mt-auto bg-slate-800/40 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
+        <div class="font-bold text-white mb-1">Criterio del Algoritmo LIFO:</div>
+        <p>• <span class="text-amber-400 font-semibold">Naranja / Amarillo:</span> Primeras entregas (quedan en la puerta trasera).</p>
+        <p>• <span class="text-sky-400 font-semibold">Azul Marino / Cian:</span> Últimas entregas (entran primero al fondo).</p>
+        <p>• <span class="text-emerald-400 font-semibold">Soporte Físico:</span> Cajas pesadas a piso y 70% de apoyo mínimo.</p>
+      </div>
+    </section>
+
+    <!-- PANEL CENTRAL: VISOR 3D INTERACTIVO -->
+    <section class="lg:col-span-5 relative bg-slate-950 flex flex-col">
+      <div id="canvas-container" class="flex-1 w-full h-full"></div>
+      <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 pointer-events-none">
+        🖱️ Click izquierdo: Rotar 3D | Rueda: Zoom | Click derecho: Mover
+      </div>
+      <div id="banner-paso" class="hidden absolute bottom-4 left-4 right-4 bg-slate-900/95 border border-amber-500/60 p-3 rounded-xl shadow-2xl text-xs">
+        <span id="texto-paso" class="font-semibold text-amber-300"></span>
+      </div>
+    </section>
+
+    <!-- PANEL DERECHO: SECUENCIA DE CARGA PARA EL OPERARIO -->
+    <section class="lg:col-span-4 bg-slate-900/60 border-l border-slate-800 p-4 flex flex-col overflow-hidden">
+      <h2 class="text-xs font-bold uppercase tracking-wider text-sky-400 mb-1">
+        3. Instructivo de Carga Secuencial (Sin Cálculo Manual)
+      </h2>
+      <p class="text-xs text-slate-400 mb-3">
+        El operario solo sigue esta lista desde el Paso #1 hasta el final:
+      </p>
+      <div class="flex-1 overflow-y-auto border border-slate-800 rounded-xl">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-slate-800/90 text-slate-300 sticky top-0">
+            <tr>
+              <th class="p-2">Paso</th>
+              <th class="p-2">Caja</th>
+              <th class="p-2">Parada</th>
+              <th class="p-2">Peso</th>
+              <th class="p-2">Ubicación Asignada</th>
+              <th class="p-2"></th>
+            </tr>
+          </thead>
+          <tbody id="tabla-instrucciones" class="divide-y divide-slate-800"></tbody>
+        </table>
+      </div>
+    </section>
+
+  </main>
+
+  <script>
+    // =====================================================
+    // DATOS INICIALES Y MOTOR DE OPTIMIZACIÓN LIFO 3D
+    // =====================================================
+    let paquetes = [];
+    let colocadas = [];
+    let timerSimulacion = null;
+
+    const rutaInicial = [
+      { id: "Caja-A1", stop: 1, l: 55, w: 45, h: 40, weight: 14 },
+      { id: "Caja-A2", stop: 1, l: 45, w: 40, h: 35, weight: 6 },
+      { id: "Caja-B1", stop: 2, l: 65, w: 50, h: 45, weight: 19 },
+      { id: "Caja-B2", stop: 2, l: 50, w: 45, h: 40, weight: 9 },
+      { id: "Caja-C1", stop: 3, l: 70, w: 55, h: 50, weight: 22 },
+      { id: "Caja-D1", stop: 4, l: 60, w: 50, h: 45, weight: 16 },
+      { id: "Caja-E1", stop: 5, l: 75, w: 60, h: 50, weight: 25 },
+      { id: "Caja-E2", stop: 5, l: 55, w: 45, h: 40, weight: 10 },
+      { id: "Caja-F1", stop: 6, l: 80, w: 65, h: 55, weight: 28 },
+      { id: "Caja-G1", stop: 7, l: 85, w: 70, h: 60, weight: 30 },
+      { id: "Caja-G2", stop: 7, l: 60, w: 50, h: 45, weight: 12 }
+    ];
+
+    function seSolapan(b1, b2) {
+      return (
+        b1.x < b2.x + b2.dx && b1.x + b1.dx > b2.x &&
+        b1.y < b2.y + b2.dy && b1.y + b1.dy > b2.y &&
+        b1.z < b2.z + b2.dz && b1.z + b1.dz > b2.z
+      );
+    }
+
+    function tieneSoporte(x, y, z, dx, dy, listaColocadas) {
+      if (z === 0) return true;
+      let areaApoyo = 0;
+      for (const c of listaColocadas) {
+        if (Math.abs((c.z + c.dz) - z) < 0.01) {
+          const ox = Math.max(0, Math.min(x + dx, c.x + c.dx) - Math.max(x, c.x));
+          const oy = Math.max(0, Math.min(y + dy, c.y + c.dy) - Math.max(y, c.y));
+          areaApoyo += ox * oy;
+        }
+      }
+      return areaApoyo >= 0.70 * (dx * dy);
+    }
+
+    function describirPosicion(x, y, z, van) {
+      const prof = x < van.L * 0.35 ? "Fondo (Cabina)" : (x < van.L * 0.70 ? "Zona Media" : "Puerta Trasera");
+      const lado = y < van.W * 0.35 ? "Izquierda" : (y < van.W * 0.70 ? "Centro" : "Derecha");
+      const nivel = z === 0 ? "A Piso" : `Apilada (z=${z}cm)`;
+      return `${prof} · ${lado} · ${nivel}`;
+    }
+
+    function ejecutarAlgoritmoLIFO(lista, van) {
+      // Ordenar: 1° Parada DESCENDENTE (LIFO), 2° Peso DESCENDENTE, 3° Volumen DESCENDENTE
+      const ordenados = [...lista].sort((a, b) => {
+        if (b.stop !== a.stop) return b.stop - a.stop;
+        if (b.weight !== a.weight) return b.weight - a.weight;
+        return (b.l * b.w * b.h) - (a.l * a.w * a.h);
+      });
+
+      const resultado = [];
+      let puntos = [{ x: 0, y: 0, z: 0 }];
+
+      for (const p of ordenados) {
+        let mejor = null;
+        puntos.sort((a, b) => (a.x - b.x) || (a.z - b.z) || (a.y - b.y));
+
+        const orientaciones = [
+          { dx: p.l, dy: p.w, dz: p.h },
+          { dx: p.w, dy: p.l, dz: p.h }
+        ];
+
+        for (const ori of orientaciones) {
+          for (const pt of puntos) {
+            if (pt.x + ori.dx <= van.L && pt.y + ori.dy <= van.W && pt.z + ori.dz <= van.H) {
+              const cand = { x: pt.x, y: pt.y, z: pt.z, dx: ori.dx, dy: ori.dy, dz: ori.dz };
+              const choca = resultado.some(c => seSolapan(cand, c));
+              if (!choca && tieneSoporte(pt.x, pt.y, pt.z, ori.dx, ori.dy, resultado)) {
+                mejor = cand;
+                break;
+              }
+            }
+          }
+          if (mejor) break;
+        }
+
+        if (mejor) {
+          resultado.push({
+            ...p,
+            ...mejor,
+            ubicacion: describirPosicion(mejor.x, mejor.y, mejor.z, van)
+          });
+          puntos.push(
+            { x: mejor.x + mejor.dx, y: mejor.y, z: mejor.z },
+            { x: mejor.x, y: mejor.y + mejor.dy, z: mejor.z },
+            { x: mejor.x, y: mejor.y, z: mejor.z + mejor.dz }
+          );
+        }
+      }
+      return resultado;
+    }
+
+    // =====================================================
+    // MOTOR GRÁFICO 3D (THREE.JS)
+    // =====================================================
+    const container = document.getElementById("canvas-container");
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x070d19);
+
+    const camera = new THREE.PerspectiveCamera(45, 1, 1, 2000);
+    camera.position.set(340, 230, 320);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    container.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
+    dirLight.position.set(200, 400, 250);
+    scene.add(dirLight);
+
+    const grupoFurgon = new THREE.Group();
+    scene.add(grupoFurgon);
+
+    function colorPorParada(stop, maxStop) {
+      const t = maxStop <= 1 ? 1 : (stop - 1) / (maxStop - 1);
+      // t=0 (Parada 1, en puerta) -> Naranja/Ámbar (#f59e0b) | t=1 (Última parada, al fondo) -> Azul LIFO (#0284c7)
+      const color = new THREE.Color();
+      color.setHSL(0.09 + t * 0.48, 0.88, 0.52);
+      return color;
+    }
+
+    function renderizarEscena(cantidadVisible = null) {
+      while (grupoFurgon.children.length > 0) {
+        grupoFurgon.remove(grupoFurgon.children[0]);
+      }
+
+      const van = obtenerDimensionesFurgon();
+      grupoFurgon.position.set(-van.L / 2, -van.H / 2, -van.W / 2);
+
+      // Dibujar estructura del furgón
+      const vanGeo = new THREE.BoxGeometry(van.L, van.H, van.W);
+      const edges = new THREE.EdgesGeometry(vanGeo);
+      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x38bdf8 }));
+      line.position.set(van.L / 2, van.H / 2, van.W / 2);
+      grupoFurgon.add(line);
+
+      // Piso tipo pallet
+      const floorGeo = new THREE.PlaneGeometry(van.L, van.W);
+      const floorMat = new THREE.MeshBasicMaterial({ color: 0x1e293b, side: THREE.DoubleSide });
+      const floor = new THREE.Mesh(floorGeo, floorMat);
+      floor.rotation.x = Math.PI / 2;
+      floor.position.set(van.L / 2, 0, van.W / 2);
+      grupoFurgon.add(floor);
+
+      const maxStop = Math.max(1, ...paquetes.map(p => p.stop));
+      const limite = cantidadVisible !== null ? cantidadVisible : colocadas.length;
+
+      for (let i = 0; i < limite; i++) {
+        const c = colocadas[i];
+        const geo = new THREE.BoxGeometry(c.dx, c.dz, c.dy);
+        const mat = new THREE.MeshLambertMaterial({
+          color: colorPorParada(c.stop, maxStop),
+          transparent: true,
+          opacity: 0.92
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(c.x + c.dx / 2, c.z + c.dz / 2, c.y + c.dy / 2);
+
+        const boxEdges = new THREE.EdgesGeometry(geo);
+        const boxLine = new THREE.LineSegments(boxEdges, new THREE.LineBasicMaterial({ color: 0x0f172a }));
+        mesh.add(boxLine);
+
+        grupoFurgon.add(mesh);
+      }
+    }
+
+    function obtenerDimensionesFurgon() {
+      return {
+        L: Number(document.getElementById("van-l").value) || 240,
+        W: Number(document.getElementById("van-w").value) || 150,
+        H: Number(document.getElementById("van-h").value) || 140
+      };
+    }
+
+    function recalcular() {
+      if (timerSimulacion) {
+        clearInterval(timerSimulacion);
+        timerSimulacion = null;
+        document.getElementById("banner-paso").classList.add("hidden");
+      }
+      const van = obtenerDimensionesFurgon();
+      colocadas = ejecutarAlgoritmoLIFO(paquetes, van);
+      actualizarUI(van);
+      renderizarEscena();
+    }
+
+    function actualizarUI(van) {
+      const volVan = van.L * van.W * van.H;
+      const volOcupado = colocadas.reduce((acc, c) => acc + (c.dx * c.dy * c.dz), 0);
+      const pesoTotal = colocadas.reduce((acc, c) => acc + c.weight, 0);
+
+      document.getElementById("kpi-vol").textContent = `${((volOcupado / volVan) * 100).toFixed(1)}%`;
+      document.getElementById("kpi-cajas").textContent = `${colocadas.length} / ${paquetes.length}`;
+      document.getElementById("kpi-peso").textContent = `${pesoTotal} kg`;
+
+      const tbody = document.getElementById("tabla-instrucciones");
+      tbody.innerHTML = "";
+      colocadas.forEach((c, idx) => {
+        const tr = document.createElement("tr");
+        tr.className = "hover:bg-slate-800/50 transition";
+        tr.innerHTML = `
+          <td class="p-2 font-bold text-amber-400">#${idx + 1}</td>
+          <td class="p-2 font-semibold text-white">${c.id}<br><span class="text-[10px] text-slate-400">${c.dx}x${c.dy}x${c.dz}cm</span></td>
+          <td class="p-2"><span class="bg-sky-500/20 text-sky-300 px-2 py-0.5 rounded font-bold">P${c.stop}</span></td>
+          <td class="p-2 text-slate-300">${c.weight} kg</td>
+          <td class="p-2 text-slate-300">${c.ubicacion}</td>
+          <td class="p-2 text-right">
+            <button onclick="eliminarPaquete('${c.id}')" class="text-red-400 hover:text-red-300 font-bold">✕</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function agregarPaquete() {
+      const id = document.getElementById("pkg-id").value.trim() || `Caja-${paquetes.length + 1}`;
+      const stop = Number(document.getElementById("pkg-stop").value) || 1;
+      const l = Number(document.getElementById("pkg-l").value) || 50;
+      const w = Number(document.getElementById("pkg-w").value) || 40;
+      const h = Number(document.getElementById("pkg-h").value) || 40;
+      const weight = Number(document.getElementById("pkg-weight").value) || 10;
+
+      paquetes.push({ id, stop, l, w, h, weight });
+      document.getElementById("pkg-id").value = `Caja-${paquetes.length + 1}`;
+      recalcular();
+    }
+
+    function eliminarPaquete(id) {
+      paquetes = paquetes.filter(p => p.id !== id);
+      recalcular();
+    }
+
+    function cargarRutaDemo() {
+      paquetes = JSON.parse(JSON.stringify(rutaInicial));
+      recalcular();
+    }
+
+    function vaciarFurgon() {
+      paquetes = [];
+      recalcular();
+    }
+
+    function iniciarSimulacionPasoAPaso() {
+      if (colocadas.length === 0) return;
+      if (timerSimulacion) clearInterval(timerSimulacion);
+
+      let paso = 0;
+      const banner = document.getElementById("banner-paso");
+      const texto = document.getElementById("texto-paso");
+      banner.classList.remove("hidden");
+
+      renderizarEscena(0);
+      timerSimulacion = setInterval(() => {
+        paso++;
+        if (paso <= colocadas.length) {
+          const c = colocadas[paso - 1];
+          texto.textContent = `PASO #${paso}: Cargar ${c.id} (Parada ${c.stop} | ${c.weight}kg) ➔ ${c.ubicacion}`;
+          renderizarEscena(paso);
+        } else {
+          clearInterval(timerSimulacion);
+          timerSimulacion = null;
+          texto.textContent = "✅ ¡Carga LIFO completada! La Parada 1 quedó lista en la puerta trasera.";
+        }
+      }, 900);
+    }
+
+    function ajustarVentana() {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h);
+    }
+
+    window.addEventListener("resize", ajustarVentana);
+
+    function animar() {
+      requestAnimationFrame(animar);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    // Inicializar
+    ajustarVentana();
+    cargarRutaDemo();
+    animar();
+  </script>
+</body>
+</html>
