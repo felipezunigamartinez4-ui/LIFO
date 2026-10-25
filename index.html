@@ -35,7 +35,11 @@
     </div>
 
     <!-- KPIs EN TIEMPO REAL -->
-    <div class="flex items-center gap-6 text-sm">
+    <div class="flex items-center gap-4 text-sm">
+      <label class="flex items-center gap-2 text-xs bg-slate-800/90 px-3 py-2 rounded-lg border border-slate-700 cursor-pointer select-none">
+        <input id="toggle-labels" type="checkbox" checked onchange="renderizarEscena()" class="accent-amber-500" />
+        <span class="text-slate-200 font-semibold">Ver Nombres en Cajas</span>
+      </label>
       <div class="bg-slate-800/80 px-3 py-1.5 rounded-lg border border-slate-700">
         <span class="text-slate-400 text-xs block">Volumen Ocupado</span>
         <span id="kpi-vol" class="font-bold text-sky-400 text-base">0%</span>
@@ -79,7 +83,7 @@
         <h2 class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">2. Agregar Paquete a la Ruta</h2>
         <div class="grid grid-cols-2 gap-2 text-xs mb-2">
           <div>
-            <label class="text-slate-400 block mb-1">Código / ID</label>
+            <label class="text-slate-400 block mb-1">Nombre / ID Caja</label>
             <input id="pkg-id" type="text" value="Caja-X1" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-white" />
           </div>
           <div>
@@ -125,20 +129,19 @@
         </div>
       </div>
 
-      <!-- LEYENDA DE COLORES -->
-      <div class="mt-auto bg-slate-800/40 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
-        <div class="font-bold text-white mb-1">Criterio del Algoritmo LIFO:</div>
-        <p>• <span class="text-amber-400 font-semibold">Naranja / Amarillo:</span> Primeras entregas (quedan en la puerta trasera).</p>
-        <p>• <span class="text-sky-400 font-semibold">Azul Marino / Cian:</span> Últimas entregas (entran primero al fondo).</p>
-        <p>• <span class="text-emerald-400 font-semibold">Soporte Físico:</span> Cajas pesadas a piso y 70% de apoyo mínimo.</p>
+      <!-- LEYENDA DE ORIENTACIÓN Y COLORES -->
+      <div class="mt-auto bg-slate-800/40 p-3 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1.5">
+        <div class="font-bold text-white mb-1">Orientación del Furgón 3D:</div>
+        <p>• <span class="text-sky-400 font-semibold"> Pared Azul (Izquierda):</span> Cabina del conductor (Fondo cerrado: aquí se carga primero la última parada).</p>
+        <p>• <span class="text-emerald-400 font-semibold">Marco Verde (Derecha):</span> Puertas Traseras de Entrada/Salida (aquí queda lista la Parada #1).</p>
       </div>
     </section>
 
     <!-- PANEL CENTRAL: VISOR 3D INTERACTIVO -->
     <section class="lg:col-span-5 relative bg-slate-950 flex flex-col">
       <div id="canvas-container" class="flex-1 w-full h-full"></div>
-      <div class="absolute top-3 left-3 bg-slate-900/80 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 pointer-events-none">
-        🖱️ Click izquierdo: Rotar 3D | Rueda: Zoom | Click derecho: Mover
+      <div class="absolute top-3 left-3 bg-slate-900/85 backdrop-blur px-3 py-1.5 rounded-lg border border-slate-700 text-xs text-slate-300 pointer-events-none">
+        🖱️ Click izq: Rotar 3D | Rueda: Zoom | Click der: Mover
       </div>
       <div id="banner-paso" class="hidden absolute bottom-4 left-4 right-4 bg-slate-900/95 border border-amber-500/60 p-3 rounded-xl shadow-2xl text-xs">
         <span id="texto-paso" class="font-semibold text-amber-300"></span>
@@ -151,7 +154,7 @@
         3. Instructivo de Carga Secuencial (Sin Cálculo Manual)
       </h2>
       <p class="text-xs text-slate-400 mb-3">
-        El operario solo sigue esta lista desde el Paso #1 hasta el final:
+        El operario ingresa las cajas por las <b>Puertas Traseras</b> siguiendo este orden:
       </p>
       <div class="flex-1 overflow-y-auto border border-slate-800 rounded-xl">
         <table class="w-full text-left text-xs">
@@ -223,7 +226,6 @@
     }
 
     function ejecutarAlgoritmoLIFO(lista, van) {
-      // Ordenar: 1° Parada DESCENDENTE (LIFO), 2° Peso DESCENDENTE, 3° Volumen DESCENDENTE
       const ordenados = [...lista].sort((a, b) => {
         if (b.stop !== a.stop) return b.stop - a.stop;
         if (b.weight !== a.weight) return b.weight - a.weight;
@@ -273,14 +275,14 @@
     }
 
     // =====================================================
-    // MOTOR GRÁFICO 3D (THREE.JS)
+    // MOTOR GRÁFICO 3D Y GENERADOR DE ETIQUETAS (THREE.JS)
     // =====================================================
     const container = document.getElementById("canvas-container");
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x070d19);
 
-    const camera = new THREE.PerspectiveCamera(45, 1, 1, 2000);
-    camera.position.set(340, 230, 320);
+    const camera = new THREE.PerspectiveCamera(45, 1, 1, 2500);
+    camera.position.set(320, 240, 340);
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     container.appendChild(renderer.domElement);
@@ -288,7 +290,7 @@
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
 
-    scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+    scene.add(new THREE.AmbientLight(0xffffff, 0.75));
     const dirLight = new THREE.DirectionalLight(0xffffff, 0.65);
     dirLight.position.set(200, 400, 250);
     scene.add(dirLight);
@@ -296,11 +298,56 @@
     const grupoFurgon = new THREE.Group();
     scene.add(grupoFurgon);
 
+    // Crea un letrero 3D siempre visible (Sprite) para cajas o indicadores del furgón
+    function crearEtiquetaSprite(lineasTexto, opciones = {}) {
+      const bg = opciones.bg || "rgba(15, 23, 42, 0.88)";
+      const borderColor = opciones.border || "#f59e0b";
+      const textColor = opciones.color || "#ffffff";
+      const escalaX = opciones.scaleX || 46;
+      const escalaY = opciones.scaleY || 22;
+
+      const canvas = document.createElement("canvas");
+      canvas.width = 512;
+      canvas.height = 256;
+      const ctx = canvas.getContext("2d");
+
+      // Fondo redondeado con borde
+      ctx.fillStyle = bg;
+      ctx.strokeStyle = borderColor;
+      ctx.lineWidth = 10;
+      ctx.beginPath();
+      ctx.roundRect(12, 12, 488, 232, 28);
+      ctx.fill();
+      ctx.stroke();
+
+      // Texto centrado
+      ctx.fillStyle = textColor;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+
+      if (lineasTexto.length === 1) {
+        ctx.font = "bold 44px sans-serif";
+        ctx.fillText(lineasTexto[0], 256, 128);
+      } else {
+        ctx.font = "bold 52px sans-serif";
+        ctx.fillText(lineasTexto[0], 256, 92);
+        ctx.fillStyle = "#fde68a";
+        ctx.font = "bold 38px sans-serif";
+        ctx.fillText(lineasTexto[1], 256, 168);
+      }
+
+      const texture = new THREE.CanvasTexture(canvas);
+      const material = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+      const sprite = new THREE.Sprite(material);
+      sprite.scale.set(escalaX, escalaY, 1);
+      sprite.renderOrder = 999;
+      return sprite;
+    }
+
     function colorPorParada(stop, maxStop) {
       const t = maxStop <= 1 ? 1 : (stop - 1) / (maxStop - 1);
-      // t=0 (Parada 1, en puerta) -> Naranja/Ámbar (#f59e0b) | t=1 (Última parada, al fondo) -> Azul LIFO (#0284c7)
       const color = new THREE.Color();
-      color.setHSL(0.09 + t * 0.48, 0.88, 0.52);
+      color.setHSL(0.09 + t * 0.48, 0.88, 0.50);
       return color;
     }
 
@@ -310,16 +357,17 @@
       }
 
       const van = obtenerDimensionesFurgon();
+      const mostrarNombres = document.getElementById("toggle-labels").checked;
       grupoFurgon.position.set(-van.L / 2, -van.H / 2, -van.W / 2);
 
-      // Dibujar estructura del furgón
+      // 1. Contorno general del furgón
       const vanGeo = new THREE.BoxGeometry(van.L, van.H, van.W);
       const edges = new THREE.EdgesGeometry(vanGeo);
-      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x38bdf8 }));
+      const line = new THREE.LineSegments(edges, new THREE.LineBasicMaterial({ color: 0x334155 }));
       line.position.set(van.L / 2, van.H / 2, van.W / 2);
       grupoFurgon.add(line);
 
-      // Piso tipo pallet
+      // 2. Piso del furgón
       const floorGeo = new THREE.PlaneGeometry(van.L, van.W);
       const floorMat = new THREE.MeshBasicMaterial({ color: 0x1e293b, side: THREE.DoubleSide });
       const floor = new THREE.Mesh(floorGeo, floorMat);
@@ -327,14 +375,67 @@
       floor.position.set(van.L / 2, 0, van.W / 2);
       grupoFurgon.add(floor);
 
+      // 3. PARED FONDO / CABINA DEL CONDUCTOR (X = 0)
+      const cabinGeo = new THREE.PlaneGeometry(van.W, van.H);
+      const cabinMat = new THREE.MeshBasicMaterial({
+        color: 0x0284c7,
+        transparent: true,
+        opacity: 0.22,
+        side: THREE.DoubleSide
+      });
+      const cabinWall = new THREE.Mesh(cabinGeo, cabinMat);
+      cabinWall.rotation.y = Math.PI / 2;
+      cabinWall.position.set(0, van.H / 2, van.W / 2);
+      grupoFurgon.add(cabinWall);
+
+      const labelCabina = crearEtiquetaSprite(
+        ["🔒 CABINA / FONDO", "1° EN CARGAR (Últimas Paradas)"],
+        { bg: "rgba(3, 105, 161, 0.92)", border: "#38bdf8", scaleX: 85, scaleY: 36 }
+      );
+      labelCabina.position.set(0, van.H + 22, van.W / 2);
+      grupoFurgon.add(labelCabina);
+
+      // 4. MARCO DE PUERTAS TRASERAS: ENTRADA Y SALIDA DE CARGA (X = van.L)
+      const doorFrameGeo = new THREE.PlaneGeometry(van.W, van.H);
+      const doorEdges = new THREE.EdgesGeometry(doorFrameGeo);
+      const doorLine = new THREE.LineSegments(
+        doorEdges,
+        new THREE.LineBasicMaterial({ color: 0x10b981, linewidth: 3 })
+      );
+      doorLine.rotation.y = Math.PI / 2;
+      doorLine.position.set(van.L, van.H / 2, van.W / 2);
+      grupoFurgon.add(doorLine);
+
+      // Rampa / Indicador de acceso en la puerta trasera
+      const rampGeo = new THREE.PlaneGeometry(35, van.W);
+      const rampMat = new THREE.MeshBasicMaterial({
+        color: 0x10b981,
+        transparent: true,
+        opacity: 0.25,
+        side: THREE.DoubleSide
+      });
+      const ramp = new THREE.Mesh(rampGeo, rampMat);
+      ramp.rotation.x = Math.PI / 2;
+      ramp.position.set(van.L + 18, 0, van.W / 2);
+      grupoFurgon.add(ramp);
+
+      const labelPuerta = crearEtiquetaSprite(
+        ["🚪 PUERTA TRASERA (ENTRADA / SALIDA)", "1° EN ENTREGAR (Parada #1 aquí)"],
+        { bg: "rgba(6, 95, 70, 0.92)", border: "#34d399", scaleX: 105, scaleY: 38 }
+      );
+      labelPuerta.position.set(van.L, van.H + 22, van.W / 2);
+      grupoFurgon.add(labelPuerta);
+
+      // 5. Renderizar cada Caja con su Nombre y Parada encima
       const maxStop = Math.max(1, ...paquetes.map(p => p.stop));
       const limite = cantidadVisible !== null ? cantidadVisible : colocadas.length;
 
       for (let i = 0; i < limite; i++) {
         const c = colocadas[i];
         const geo = new THREE.BoxGeometry(c.dx, c.dz, c.dy);
+        const colorCaja = colorPorParada(c.stop, maxStop);
         const mat = new THREE.MeshLambertMaterial({
-          color: colorPorParada(c.stop, maxStop),
+          color: colorCaja,
           transparent: true,
           opacity: 0.92
         });
@@ -344,6 +445,16 @@
         const boxEdges = new THREE.EdgesGeometry(geo);
         const boxLine = new THREE.LineSegments(boxEdges, new THREE.LineBasicMaterial({ color: 0x0f172a }));
         mesh.add(boxLine);
+
+        // Etiqueta flotante con el nombre de la caja, parada y peso
+        if (mostrarNombres) {
+          const etiquetaCaja = crearEtiquetaSprite(
+            [`${c.id}`, `Parada ${c.stop} · ${c.weight}kg`],
+            { bg: "rgba(15, 23, 42, 0.88)", border: "#f59e0b", scaleX: 36, scaleY: 17 }
+          );
+          etiquetaCaja.position.set(0, c.dz / 2 + 4, 0);
+          mesh.add(etiquetaCaja);
+        }
 
         grupoFurgon.add(mesh);
       }
@@ -439,14 +550,14 @@
         paso++;
         if (paso <= colocadas.length) {
           const c = colocadas[paso - 1];
-          texto.textContent = `PASO #${paso}: Cargar ${c.id} (Parada ${c.stop} | ${c.weight}kg) ➔ ${c.ubicacion}`;
+          texto.textContent = `PASO #${paso}: Entrar por Puerta Trasera con ${c.id} (Parada ${c.stop} | ${c.weight}kg) ➔ Ubicar en ${c.ubicacion}`;
           renderizarEscena(paso);
         } else {
           clearInterval(timerSimulacion);
           timerSimulacion = null;
-          texto.textContent = "✅ ¡Carga LIFO completada! La Parada 1 quedó lista en la puerta trasera.";
+          texto.textContent = "✅ ¡Carga LIFO completada! La Parada #1 quedó junto a la Puerta Trasera lista para salir.";
         }
-      }, 900);
+      }, 950);
     }
 
     function ajustarVentana() {
@@ -465,7 +576,6 @@
       renderer.render(scene, camera);
     }
 
-    // Inicializar
     ajustarVentana();
     cargarRutaDemo();
     animar();
